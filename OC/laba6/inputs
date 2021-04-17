@@ -1,0 +1,4 @@
+nano node2.cpp && g++ node2.cpp -lzmq -lpthread -o nodo.out
+./clear.sh
+cat inp2 | ./interface.out
+nano interface.cpp && g++ interface.cpp -lzmq -o interface.out

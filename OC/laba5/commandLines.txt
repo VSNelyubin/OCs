@@ -1,0 +1,9 @@
+ 1158  nano var2.c && gcc -fPIC -c var2.c && gcc -shared -Wl,-soname,libvar2.so -o libvar2.so var2.o
+
+ 1167  nano var1.c && gcc -fPIC -c var1.c && gcc -shared -Wl,-soname,libvar1.so -o libvar1.so var1.o
+ 1168  ./a.out 1
+ 1169  nano prg2.c && gcc prg2.c -L. -ldl
+ 1170  nano prg2.c && gcc prg2.c -L. -ldl -o switchy.out
+ 1172  nano prg.c && gcc prg.c -L. -lvar2 -lm -o var2.out
+ 1173  nano prg.c && gcc prg.c -L. -lvar1 -lm -o var1.out
+export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH

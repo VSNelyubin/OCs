@@ -1,0 +1,25 @@
+ 1155  nano prg.c && gcc prg.c -L. -lvar2 -lm
+ 1156  ./a.out
+ 1157  nano prg.c && gcc prg.c -L. -lvar2 -lm
+ 1158  nano var2.c && gcc -fPIC -c var2.c && gcc -shared -Wl,-soname,libvar2.so -o libvar2.so var2.o
+ 1159  ./a.out
+ 1160  cat prg.c > prg2.c
+ 1161  nano prg2.c && gcc prg2.c -L. -lm
+ 1162  nano prg2.c && gcc prg2.c -L. -lm -ldl
+ 1163  nano prg2.c && gcc prg2.c -L. -lm
+ 1164  nano prg2.c && gcc prg2.c -L. -lm -ldl
+ 1165  ./a.out
+ 1166  ./a.out 1
+ 1167  nano var1.c && gcc -fPIC -c var1.c && gcc -shared -Wl,-soname,libvar1.so -o libvar1.so var1.o
+ 1168  ./a.out 1
+ 1169  nano prg2.c && gcc prg2.c -L. -ldl
+ 1170  nano prg2.c && gcc prg2.c -L. -ldl -o switchy.out
+ 1171  ls
+ 1172  nano prg.c && gcc prg.c -L. -lvar2 -lm -o var2.out
+ 1173  nano prg.c && gcc prg.c -L. -lvar1 -lm -o var1.out
+ 1174  ls
+ 1175  cd .. && mkdir laba6 && cd laba6
+ 1176  clear
+ 1177  history 10
+ 1178  cd ../laba5
+ 1179  history 25 > history.txt
