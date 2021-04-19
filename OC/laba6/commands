@@ -1,0 +1,4 @@
+ 2195  nano node2.cpp && g++ node2.cpp -lzmq -lpthread -o nodo.out
+ 2196  nano interface.cpp && g++ interface.cpp -lzmq -lpthread -o interface.out
+ 2197  ./interface.out
+ 2218  ./clear.sh

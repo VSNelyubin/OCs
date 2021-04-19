@@ -200,60 +200,68 @@ std::string sendToAll(std::vector<pid_t> &pids , std::vector<int> &chids , std::
 		bdr2=sockets.capacity();
 	}
 	bool success=false;
+	bool pidAva=true;
 	std::string rez="N\0";
 //	std::cout<<"["<<CurId<<"] will forward "<<command<<" to childs from "<<bdr1<<" to "<<bdr2<<"\n";
 //	printf("pids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",pids[r]);}printf(" ]\n");printf("chids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",chids[r]);}printf(" ]\n");
 	for(idx=bdr1;idx<bdr2;idx++){
 		if((pids[idx]!=0)&&(chids[idx]!=0)){
-			zmq::message_t request (command.size());
-			memcpy (request.data (), (command+"\0").c_str(), command.size()+1);
+			if(getpgid(pids[idx]) >= 0){
+				zmq::message_t request (command.size());
+				memcpy (request.data (), (command+"\0").c_str(), command.size()+1);
 //			printf("[%d] forward to %d\n",CurId,chids[idx]);
-			sockets[idx].send (request,zmq::send_flags::none);
+				sockets[idx].send (request,zmq::send_flags::none);
 //			printf("[%d] fwd success%d\n",CurId,chids[idx]);
+			}
 		}
 //		else{printf("no process\n");}
 	}
 	zmq::message_t reply;
 	for(idx=bdr1;idx<bdr2;idx++){
-
 		if((pids[idx]!=0)&&(chids[idx]!=0)){
+			if(getpgid(pids[idx]) >= 0){
 //			printf("[%d] ask%d for answer\n",CurId,chids[idx]);
-			sockets[idx].recv(reply,zmq::recv_flags::none);
+				sockets[idx].recv(reply,zmq::recv_flags::none);
 //			printf("[%d] got \'%s\'answer from %d\n",CurId,(char*)reply.data(),chids[idx]);
 //			printf("answer %d:%s\n",idx,(char*)reply.data());
-			if((((char*)reply.data())[0]=='Y')&&(rez=="N\0")){
-				rez="Y\0";
-				success=true;
-			}
-			if(((char*)reply.data())[0]=='K'){
-//				printf("%s\n",(char*)reply.data());
-				rez[0]='K';
-				rez+=" ";
-				for(int ij=2;((char*)reply.data())[ij]!='\0';ij++){
-					rez+=((char*)reply.data())[ij];
+				if((((char*)reply.data())[0]=='Y')&&(rez=="N\0")){
+					rez="Y\0";
+					success=true;
 				}
+				if(((char*)reply.data())[0]=='K'){
+//				printf("%s\n",(char*)reply.data());
+					rez[0]='K';
+					rez+=" ";
+					for(int ij=2;((char*)reply.data())[ij]!='\0';ij++){
+						rez+=((char*)reply.data())[ij];
+					}
 //				std::cout<<rez<<"|\n";
-				success=true;
+					success=true;
 //printf("r limit is %ld\n",reply.size());
-				for(int r=2;r<reply.size();r++){
-					if(getIntM((char*)reply.data(),r)==chids[idx]){
-						killChild(pids,chids,sockets,idx);
+					for(int r=2;r<reply.size();r++){
+						if(getIntM((char*)reply.data(),r)==chids[idx]){
+							killChild(pids,chids,sockets,idx);
 //printf("[%d] deleted %d\n",CurId,chids[idx]);
-						break;
+							break;
+						}
 					}
 				}
-			}
-			if(((char*)reply.data())[0]=='V'){
-				int val=0;
-				for(int ij=1;((char*)reply.data())[ij]!='\0';ij++){
-					val=val*10+((char*)reply.data())[ij]-'0';
+				if(((char*)reply.data())[0]=='V'){
+					int val=0;
+					for(int ij=1;((char*)reply.data())[ij]!='\0';ij++){
+						val=val*10+((char*)reply.data())[ij]-'0';
+					}
+					rez="V"+std::to_string(val)+"\0";
 				}
-				rez="V"+std::to_string(val)+"\0";
+			}
+			else{
+				printf("Node %d is gone\n",chids[idx]);
+				if(rez[0]=='N'){
+					rez[0]='U';
+				}
 			}
 		}
 	}
-//printf("%d after forwarding\n",CurId);
-//	printf("pids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",pids[r]);}printf(" ]\n");printf("chids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",chids[r]);}printf(" ]\n");
 	return rez;
 }
 

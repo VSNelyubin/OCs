@@ -294,6 +294,10 @@ int main(){
 			zmq::message_t reply;
 			socket.recv(reply,zmq::recv_flags::none);
 			((char*)reply.data())[reply.size()]='\0';
+
+			if( ((char*)reply.data())[0]=='U' ){
+				printf("Error: Node not avaliable\n");
+			}
 //			printf("main answer: %s\n",(char*)reply.data());
 //char tpm;for(int jj=0;true;jj++){tpm=((char*)reply.data())[jj];if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}}printf("\n");
 			if(i==0){
