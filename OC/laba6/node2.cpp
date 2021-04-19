@@ -16,6 +16,19 @@
 const int CMNM=6;
 const size_t TCPE=32;
 
+int getIntM(char*str,int&offs){
+	int rez=0,sig=1;
+	if(str[offs]=='-'){
+		sig=-1;
+		offs++;
+	}
+	for(;((str[offs]>='0')&&(str[offs]<='9'));offs++){
+		rez=rez*10+str[offs]-'0';
+	}
+	rez*=sig;
+	return rez;
+}
+
 bool checkTCP(char*ard){
 	int i;
 	for(i=0;i<6;i++){
@@ -73,7 +86,7 @@ void killChild(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::vecto
 	return true;
 }*/
 
-bool newChildNode(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::vector<zmq::socket_t> &socketsN , zmq::context_t&contextN , char*NodeExecN,int chidN, int*pulse,std::string&str){
+int newChildNode(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::vector<zmq::socket_t> &socketsN , zmq::context_t&contextN , char*NodeExecN,int chidN, int*pulse,std::string&str){
 	int idx;
 	for(idx=0;idx<socketsN.capacity();idx++){
 		if((pidsN[idx]==0)&&(chidsN[idx]==0)){
@@ -97,7 +110,7 @@ bool newChildNode(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::ve
 		socketsN[idx].close();
 		delete[] tmpadresN;
 		printf("socket ID failure %d\n",fqN);
-		return false;
+		return 0;
 	}
 
 	pid_t pidN;
@@ -120,7 +133,7 @@ bool newChildNode(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::ve
 		printf("something went wrong with fork()\n");
 		socketsN[idx].close();
 		delete[] tmpadresN;
-		return false;
+		return 0;
 	}
 	else{
 		pidsN[idx]=pidN;
@@ -131,27 +144,27 @@ bool newChildNode(std::vector<pid_t> &pidsN , std::vector<int> &chidsN , std::ve
 		zmq::message_t replyN;
 		socketsN[idx].recv(replyN,zmq::recv_flags::none);
 //		printf("new child %d in [%d]: %s\n",chidN,idx,(char*)replyN.data());
-		return true;
+		return pidN;
 	}
 	printf("something failed\n");
 	return false;
 }
 
-bool tryToAdd(std::vector<pid_t> &pids , std::vector<int> &chids , std::vector<zmq::socket_t> &sockets , zmq::context_t&context , char*NodeExec,int chid, int*pulse,std::string&heartbitListener){
-	bool success=true;
+int tryToAdd(std::vector<pid_t> &pids , std::vector<int> &chids , std::vector<zmq::socket_t> &sockets , zmq::context_t&context , char*NodeExec,int chid, int*pulse,std::string&heartbitListener){
+	int success=1;
 	for(int che=0;che<chids.size();che++){
 		if(chid==chids[che]){
-			success=false;
-			printf("node already exists\n");
+			success=0;
+//			printf("node already exists\n");
 		}
 	}
 	if(success){
-		if(!newChildNode(pids , chids , sockets , context , NodeExec , chid, pulse, heartbitListener)){
-			success=false;
+		success=newChildNode(pids , chids , sockets , context , NodeExec , chid, pulse, heartbitListener);
+		if(!success){
 			printf("could not create new node\n");
 		}
 		else{
-			printf("created new node\n");
+//			printf("created new node\n");
 		}
 	}
 	return success;
@@ -188,23 +201,25 @@ std::string sendToAll(std::vector<pid_t> &pids , std::vector<int> &chids , std::
 	}
 	bool success=false;
 	std::string rez="N\0";
-//	std::cout<<CurId<<" will forward "<<command<<" to childs from "<<bdr1<<" to "<<bdr2<<"\n";
+//	std::cout<<"["<<CurId<<"] will forward "<<command<<" to childs from "<<bdr1<<" to "<<bdr2<<"\n";
+//	printf("pids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",pids[r]);}printf(" ]\n");printf("chids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",chids[r]);}printf(" ]\n");
 	for(idx=bdr1;idx<bdr2;idx++){
 		if((pids[idx]!=0)&&(chids[idx]!=0)){
 			zmq::message_t request (command.size());
 			memcpy (request.data (), (command+"\0").c_str(), command.size()+1);
-//			printf("%d forward to %d\n",CurId,chids[idx]);
-//			sockets[idx].send (request,zmq::send_flags::none);
-//			printf("%d fwd success%d\n",CurId,chids[idx]);
+//			printf("[%d] forward to %d\n",CurId,chids[idx]);
+			sockets[idx].send (request,zmq::send_flags::none);
+//			printf("[%d] fwd success%d\n",CurId,chids[idx]);
 		}
+//		else{printf("no process\n");}
 	}
 	zmq::message_t reply;
 	for(idx=bdr1;idx<bdr2;idx++){
 
 		if((pids[idx]!=0)&&(chids[idx]!=0)){
-//                      printf("%d ask%d for answer\n",CurId,chids[idx]);
+//			printf("[%d] ask%d for answer\n",CurId,chids[idx]);
 			sockets[idx].recv(reply,zmq::recv_flags::none);
-//			printf("%d got \'%s\'answer from %d\n",CurId,(char*)reply.data(),chids[idx]);
+//			printf("[%d] got \'%s\'answer from %d\n",CurId,(char*)reply.data(),chids[idx]);
 //			printf("answer %d:%s\n",idx,(char*)reply.data());
 			if((((char*)reply.data())[0]=='Y')&&(rez=="N\0")){
 				rez="Y\0";
@@ -219,7 +234,14 @@ std::string sendToAll(std::vector<pid_t> &pids , std::vector<int> &chids , std::
 				}
 //				std::cout<<rez<<"|\n";
 				success=true;
-				killChild(pids,chids,sockets,idx);
+//printf("r limit is %ld\n",reply.size());
+				for(int r=2;r<reply.size();r++){
+					if(getIntM((char*)reply.data(),r)==chids[idx]){
+						killChild(pids,chids,sockets,idx);
+//printf("[%d] deleted %d\n",CurId,chids[idx]);
+						break;
+					}
+				}
 			}
 			if(((char*)reply.data())[0]=='V'){
 				int val=0;
@@ -230,6 +252,8 @@ std::string sendToAll(std::vector<pid_t> &pids , std::vector<int> &chids , std::
 			}
 		}
 	}
+//printf("%d after forwarding\n",CurId);
+//	printf("pids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",pids[r]);}printf(" ]\n");printf("chids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",chids[r]);}printf(" ]\n");
 	return rez;
 }
 
@@ -241,7 +265,7 @@ bool addWord(std::map<std::string,int>&vocab,std::string&arg3,int arg2){
 	else{
 		vocab[arg3]=arg2;
 		success=true;
-		printf("word added\n");
+		std::cout<<"word added "<<arg3<<"\n";
 	}
 	return success;
 }
@@ -265,12 +289,18 @@ void waitForMessage(zmq::socket_t &socket, zmq::message_t &reply, int &flag){
 	flag=2;
 }
 
+void f_ill(int i){
+	for(int j=0;j<i;j++){
+		printf(" ");
+	}
+}
+
 int main( int argc, char *argv[] ){
-/*	printf("arguments:\n");
+/*	printf("\narguments:\n");
 	for(int i=0;i<argc;i++){
 		printf("%s\n",argv[i]);
 	}
-	printf("arguments over\n");
+	printf("arguments over\n\n");
 */	zmq::context_t context (1);
 	zmq::socket_t psocket (context, ZMQ_REP);
 	psocket.connect (argv[1]);
@@ -310,17 +340,14 @@ int main( int argc, char *argv[] ){
 			CurId*=-1;
 		}
 	}
-
 	zmq::socket_t socketT (context, ZMQ_PUSH);
 	socketT.connect (argv[3]);
-
 	std::string heartbitListener=argv[3];
-
 	zmq::message_t request (3);//<------------------------------------------------------------------------------------
 	memcpy (request.data (), "R!\0", 3);
 	psocket.send(request,zmq::send_flags::none);
-	std::vector<pid_t> pids={};
-	std::vector<int> chids={};
+	std::vector<pid_t> pids={0};
+	std::vector<int> chids={0};
 	int num=255,i=-1,j,ln,tln;
 	std::map<std::string,int>vocab{};
 	int type,arg1=-8,arg2=-8,idx;
@@ -331,18 +358,18 @@ int main( int argc, char *argv[] ){
 	int heartbit=0;
 	int haveMessage=0;//0-thread not running. 1-thread is waiting. 2-ready to join
 	std::thread waitMes;
+	std::string heartbet;
 	double heartBitT=0;
-//	clock_t pasT=clock(),curT=pasT;
 	while(1){
 //listen to your heart
 		if(heartbit){
 			if(((double)clock()-heartBitT) > (double)(heartbit/1000 * CLOCKS_PER_SEC)){
 				heartBitT+=(double)(heartbit/1000 * CLOCKS_PER_SEC);//-= (double)(heartbit/1000 * CLOCKS_PER_SEC);
 //				std::cout<<CurId<<" thump~ "<<((double)clock()-heartBitT)<<"\n";
-				std::string heartbet=std::to_string(CurId)+" "+std::to_string((double)clock())+"\0\0";
-				zmq::message_t request (heartbet.length());
-				memcpy (request.data (), heartbet.c_str(), answer.length());
-				psocket.send(request,zmq::send_flags::dontwait);
+				heartbet="HBT "+std::to_string(CurId)+"\0\0";//+" "+std::to_string((double)clock())+"\0\0";
+				zmq::message_t request (heartbet.length()+1);
+				memcpy (request.data (), heartbet.c_str(), heartbet.length()+1);
+				socketT.send(request,zmq::send_flags::dontwait);
 				//printf("%d Thump %f\n", CurId,(double)clock()-heartBitT);
 			}
 		}
@@ -355,7 +382,8 @@ int main( int argc, char *argv[] ){
 		if(haveMessage==2){
 			haveMessage=0;
 			waitMes.join();
-//			printf("%d child received \"%s\"\n",CurId,(char*)reply.data());
+			((char*)reply.data())[reply.size()]='\0';
+//			printf("%d received \"%s\"\n",CurId,(char*)reply.data());
 			command=(char*)reply.data();
 			i=1;
 			arg1=0;
@@ -389,7 +417,9 @@ int main( int argc, char *argv[] ){
 			success=true;
 			if(i==0){
 				if(arg2==CurId){
-					success=tryToAdd(pids ,chids ,sockets , context ,NodeExec,arg1, &heartbit,heartbitListener);
+					//success
+					int tmpa=tryToAdd(pids ,chids ,sockets , context ,NodeExec,arg1, &heartbit,heartbitListener);
+					answer="V"+std::to_string(tmpa);
 				}
 				else{
 					answer=sendToAll(pids ,chids ,sockets,i,arg1,arg2,command,CurId);
@@ -403,11 +433,17 @@ int main( int argc, char *argv[] ){
 					}
 					if(i==2){
 						success=addWord(vocab,arg3,arg2);
+						answer="Y\n";
 					}
 					if(i==3){
 						int rezu=0;
 						success=findWord(vocab,arg3,rezu);
-						answer="V"+std::to_string(rezu)+"\0";//std::cout<<"test: "<<answer<<"\n";
+						if(success){
+							answer="V "+std::to_string(rezu)+"\0";
+						}
+						else{
+							answer="N\n";
+						}
 					}
 				}
 				else{
@@ -418,7 +454,7 @@ int main( int argc, char *argv[] ){
 			}
 			if(i==4){
 				heartbit=arg1;
-				heartBitT=(double)clock();
+				//heartBitT=(double)clock();
 				answer=sendToAll(pids ,chids ,sockets,i,arg1,arg2,command,CurId);
 			}
 			if(i==5){
@@ -426,6 +462,17 @@ int main( int argc, char *argv[] ){
 			}
 			if(i==6){
 				break;//exit while loop. do all finalization there
+			}
+			if(i==7){
+				f_ill(arg1);printf("┌────────────────────────\n");
+				f_ill(arg1);printf("| ");printf("%d: heartbit = %d\n",CurId,heartbit);
+				f_ill(arg1);printf("| ");printf("pids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",pids[r]);}printf(" ]\n");
+				f_ill(arg1);printf("| ");printf("chids= [");for(int r=0;r<sockets.capacity();r++){printf(" %d",chids[r]);}printf(" ]\n");
+				f_ill(arg1);printf("| ");for (const auto& p : vocab ) {std::cout <<"["<<p.first<<"]"<<p.second<<"\t";}printf("\n");
+				f_ill(arg1);printf("└────────────────────────\n");
+				arg1+=2;
+				success=true;
+				answer=sendToAll(pids ,chids ,sockets,i,arg1,arg2,command,CurId);
 			}
 			if((answer[0]!='V')&&(answer[0]!='K')){
 				if(success){
@@ -436,17 +483,13 @@ int main( int argc, char *argv[] ){
 				}
 			}
 			zmq::message_t request (answer.length()+1);
-//			std::cout<<"message size is "<<request.size()<<", should be %ld\n",answer.length()+1);
 			memcpy (request.data (), answer.c_str(), answer.length()+1);
 			psocket.send(request,zmq::send_flags::none);
-		}//ELSE from got_command? is here
+		}
 	}
 //	printf("%d exiting\n",CurId);
 	answer=sendToAll(pids ,chids ,sockets,6,0,0,"6 0 0 0",CurId);
-//	std::cout<<CurId<<" got deletion answer "<<answer<<"\n";
-//	std::cout<<"check "<<('\0'==answer[answer.size()])<<"\n";
 	if(answer[0]=='K'){
-//		answer=answer.substr(0, answer.size()-1);
 		answer=answer+" "+std::to_string(CurId);
 	}
 	else{
@@ -459,6 +502,7 @@ int main( int argc, char *argv[] ){
 	memcpy (request.data (), answer.c_str(), answer.size()+1);
 	psocket.send(request,zmq::send_flags::none);
 	psocket.close();
+	socketT.close();
 	context.close();
 	return 0;
 }

@@ -1,8 +1,6 @@
 #include <iostream>
-
 #include <chrono>
 #include <thread>
-
 #include <string>
 #include <map>
 #include <vector>
@@ -32,10 +30,8 @@ int getIntM(char*str,int&offs){
 std::string getStrM(char*str,int&offs){
 	std::string rez="";
 	for(;((str[offs]!='\0')&&(str[offs]!=' ')&&(str[offs]!='\n'));offs++){
-//        	printf("%c ",str[offs]);
 		rez=rez+str[offs];
 	}
-//	printf("\n");
 	return rez;
 }
 
@@ -67,25 +63,32 @@ double getDubM(char*str,int&offs){
 	return rez;
 }
 
-const int CMNM=6;
+const int CMNM=7;
 const size_t TCPE=32;
-//void waitForMessage(zmq::socket_t &socket, zmq::message_t &reply, int &flag){
-void updateTimers(std::map<int,double>&timers,zmq::socket_t &socket){
-	zmq::message_t reply;
+
+void updateTimers(std::map<int,double>&timers,zmq::socket_t &socket,bool &running){
+	zmq::message_t reply (10);
 	int chid,i;
-	double pulse;
-	while(1){
-printf("qwe\n");
-		while(!((socket.recv (reply,zmq::recv_flags::dontwait))&&(zmq_errno()==EAGAIN))){
-//printf("awe\n");
-			i=0;
-			chid=getIntM(((char*)reply.data()),i);
-			i++;
-			pulse=getDubM(((char*)reply.data()),i);
-			timers[chid]=pulse;
-		}
+	int pulse=0;
+	while(running){
+//	printf("qwe %d\n",pulse++);
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		socket.recv(reply,zmq::recv_flags::none);//dontwait);
+//		while( zmq_errno()!=EAGAIN ){
+//		printf("heard %s\n",(char*)(reply.data()));
+		i=4;
+		chid=getIntM(((char*)reply.data()),i);
+		timers[chid]=(double)clock();
+//			socket.recv(reply,zmq::recv_flags::dontwait);
+//		}
+//		printf("%d - %d ; %d\n",pulse,zmq_errno(),EAGAIN);
+//		for (const auto& p : timers ) {
+//			std::cout <<"["<<p.first<<"]"<<(p.second-(double)clock())<<std::endl;
+//		}
 	}
 }
+
+const bool TCP4HRT=true;
 
 int main(){
 	std::map<int,double>timers;
@@ -99,30 +102,34 @@ int main(){
 	std::string command,arg3="\0dummy\0";
 	bool found,success;
 	int bdr1,bdr2;
-	const char*cmds[CMNM]={"create ","remove ","exec ","heartbit ","ping ","exit"};
+	const char*cmds[CMNM]={"create ","remove ","exec ","heartbit ","ping ","exit","admin info"};
 	char*inpt=(char*)malloc(sizeof(char)*num);
 	zmq::context_t context (1);
 	zmq::socket_t socket (context,ZMQ_REQ);
 	socket.bind ("tcp://*:*");//*/
 	char*tmpadresN=new char[TCPE];
 	size_t tmpsizeN=TCPE*sizeof(char);
-
-	zmq::socket_t socketT (context,ZMQ_PULL);
-	socketT.bind ("tcp://*:*");//*/
 	char*heartbitListener=new char[TCPE];
-	if(zmq_getsockopt(socketT,ZMQ_LAST_ENDPOINT,heartbitListener,&tmpsizeN)){
-		socketT.close();
+	for(i=0;i<TCPE-1;i++){
+		heartbitListener[i]=i%26+'A';
+		heartbitListener[i+1]='\0';
+	}
+
+	zmq::socket_t sucketT (context,ZMQ_PULL);
+	sucketT.bind ("tcp://*:*");//*/
+	if(zmq_getsockopt(sucketT,ZMQ_LAST_ENDPOINT,heartbitListener,&tmpsizeN)){
+		sucketT.close();
 		delete[] tmpadresN;
-		printf("socket T ID failure\n");
+		printf("socket T ID failure1\n");
 		return -1;
 	}
-/*	if(zmq_setsockopt(socketT,ZMQ_LAST_ENDPOINT,heartbitListener,&tmpsizeN)){
-		socketT.close();
+	int deftime=1000;
+	if(zmq_setsockopt(sucketT,ZMQ_RCVTIMEO,&deftime,sizeof(int))){
+		sucketT.close();
 		delete[] tmpadresN;
-		printf("socket T ID failure %d\n",fqN);
+		printf("socket T ID failure2\n");
 		return -1;
 	}
-*/
 
 	tmpsizeN=TCPE*sizeof(char);
 	int fqN;
@@ -133,16 +140,12 @@ int main(){
 		printf("socket C ID failure %d\n",fqN);
 		return -1;
 	}
-//printf("child tcp %s\n timer tcp %s\n",tmpadresN,heartbitListener);
 	pid_t pidN;
-//printf("fork<\n");
 	pidN=fork();
 	if(pidN==0){
-//		printf("child fork\n");
 		char*chidAr=new char[2];
 		chidAr[0]='M';
-		chidAr[1]='\n';
-//		printf("what?\n");
+		chidAr[1]='\0';
 		char*args[]={NodeExec,tmpadresN,chidAr,heartbitListener,NULL};
 //		for(int ii=0;ii<2;ii++){
 //			printf("%s\n",args[ii]);
@@ -161,23 +164,19 @@ int main(){
 	}
 	zmq::message_t requestN (5);
 	memcpy (requestN.data (), "Ready", 5);
-//printf("PLESE\n");
 	socket.send (requestN,zmq::send_flags::none);
 	zmq::message_t replyN;
-//printf("receive childready\n");
 	socket.recv(replyN,zmq::recv_flags::none);//dontwait);
-//printf("received safely\n");
-//	printf("root: %s; err=%d\n",(char*)replyN.data(),errno);
-
 	bool snd,needEnd=true;
 
 	std::thread lifeChecker;
 
 	int heartbit=0;
+	bool running=true;
 
-//	printf("THE FUCK?\n");
-
-	lifeChecker=std::thread(updateTimers,std::ref(timers),std::ref(socket));
+	if(TCP4HRT){
+		lifeChecker=std::thread(updateTimers,std::ref(timers),std::ref(sucketT),std::ref(running));
+	}
 
 	while(NULL!=fgets (inpt, num, stdin)){
 		needEnd=false;
@@ -205,9 +204,10 @@ int main(){
 			printf("Error: command not found\n");
 			continue;
 		}
+//else{printf("i = %d %s\n",i,cmds[i]);}
 //		printf("%s\n",inpt);
 //for(int ru=0;ru<j;ru++){printf(" ");}printf("^ %c\n",inpt[j]);
-		if(i!=6){
+		if(i<5){
 			arg1=getIntM(inpt,j);
 			if(i>2){i++;}
 			if(i==0){
@@ -223,7 +223,8 @@ int main(){
 				}
 				else{i++;}
 			}
-		}
+		}else{i++;}
+//printf("i = %d %s\n",i,cmds[i-(i>2)]);
 		snd=true;
 		if(i==0){
 			for(tln=0;tln<chids.size();tln++){
@@ -252,21 +253,36 @@ int main(){
 			if(tln==chids.size()){
 				printf("Error: Not found\n");
 				snd=false;
+			//	continue;
 			}
-		}
-		if(i==5){
-			snd=false;
-			if(heartbit>0){
-				if(((double)clock()-timers[arg1]) > 4*(double)(heartbit/1000 * CLOCKS_PER_SEC)){
-					printf("Ok: 0\n");
+			else if(i==5){
+				snd=false;
+				if(heartbit>0){
+					if(timers.count(arg1)){
+						if(((double)clock()-timers[arg1]) > 4*(double)(heartbit/1000 * CLOCKS_PER_SEC)){
+							printf("Ok: 0\n");
+						}
+						else{
+							printf("Ok: 1\n");
+						}
+					}
+					else{
+						printf("Error: Node Heartbit has not been set\n");
+					}
 				}
 				else{
-					printf("Ok: 1\n");
+					printf("Error: Heartbit is set to 0\n");
 				}
 			}
-			else{
-				printf("Error: bad heartbit value. use heartbit [MILLISECOND COUNT] command to set pulse rate\n");
-			}
+		}
+		if(i==7){
+			for (const auto& p : timers ) {
+				std::cout <<"["<<p.first<<"]"<<(p.second-(double)clock())<<std::endl;
+			}printf("\n");
+			snd=true;
+			arg1=1;
+			arg2=0;
+			arg3="beans\0";
 		}
 
 		if(snd){
@@ -277,10 +293,19 @@ int main(){
 			socket.send(request,zmq::send_flags::none);
 			zmq::message_t reply;
 			socket.recv(reply,zmq::recv_flags::none);
-			printf("main answer: %s\n",(char*)reply.data());
+			((char*)reply.data())[reply.size()]='\0';
+//			printf("main answer: %s\n",(char*)reply.data());
 //char tpm;for(int jj=0;true;jj++){tpm=((char*)reply.data())[jj];if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}}printf("\n");
-			if((i==0)&&(((char*)reply.data())[0]=='Y')){
-				chids.push_back(arg1);
+			if(i==0){
+				if( ((char*)reply.data())[0]=='V' ){
+					chids.push_back(arg1);
+					int ofs=1;
+					int ji=getIntM((char*)reply.data(),ofs);
+					printf("Ok: %d\n",ji);
+				}
+				else{
+					printf("Error: could not create new node\n");
+				}
 			}
 			if((i==1)&&(((char*)reply.data())[0]=='Y')){
 				int ii;
@@ -289,16 +314,21 @@ int main(){
 					chids[ii]=chids[ii+1];
 				}
 				chids.resize(chids.size()-1);
+				printf("Ok\n");
+			}
+			if((i==4)&&(((char*)reply.data())[0]=='Y')){
+				heartbit = arg1;
 			}
 			if(((char*)reply.data())[0]=='K'){
+//printf("entered cleaning\n");
 				int ii=1,jj=1,ji=1;
-char tpm;
+				char tpm;
 				while(jj<reply.size()){
 					jj++;
-tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}
+					tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}
 					if((tpm>'9')||(tpm<'0')){break;}
 					ji=getIntM((char*)reply.data(),jj);
-//printf("%d is deleted\n",ji);
+//printf("deleting %d\n",ji);
 					for(ii=0;chids[ii]!=ji;ii++);
 					for(ii;ii<chids.size()-1;ii++){
 						chids[ii]=chids[ii+1];
@@ -306,7 +336,7 @@ tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm==
 					chids.resize(chids.size()-1);
 				}
 			}
-			printf("running processes: ");for(int ii=0;ii<chids.size();ii++){printf("%d ",chids[ii]);}printf("\n");
+//			printf("running processes: ");for(int ii=0;ii<chids.size();ii++){printf("%d ",chids[ii]);}printf("\n");
 //			printf("main answer: %s\n",(char*)reply.data());
 		}
 		if(i==6){
@@ -315,9 +345,12 @@ tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm==
 		if((i==1)&&(arg1==-1)){
 			break;
 		}
+//printf("\n\n");
 		needEnd=true;
 	}
-	lifeChecker.join();
+	running=false;
+	if(TCP4HRT){lifeChecker.join();}
+	sucketT.close();
 	if(needEnd){
 		command="6 0 0 0\0\0";
 		zmq::message_t request (command.size());
@@ -329,8 +362,6 @@ tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm==
 	return 0;
 }
 
-//
-
 //0        "create childID parentID"
 //1        "remove childID"
 //2        "exec childID name value"
@@ -338,3 +369,4 @@ tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm==
 //4        "heartbit TIME"
 //5        "ping childID"
 //6        "exit"
+//7        "admin info"
