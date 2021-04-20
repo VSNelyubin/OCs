@@ -287,7 +287,6 @@ int main(){
 
 		if(snd){
 			command=std::to_string(i)+" "+std::to_string(arg1)+" "+std::to_string(arg2)+" "+arg3+"\0";
-//		std::cout<<"sending command \""<<command<<"\"\n";
 			zmq::message_t request (command.size());
 			memcpy (request.data (), command.c_str(), command.size());
 			socket.send(request,zmq::send_flags::none);
@@ -311,7 +310,7 @@ int main(){
 					printf("Error: could not create new node\n");
 				}
 			}
-			if((i==1)&&(((char*)reply.data())[0]=='Y')){
+			else if((i==1)&&(((char*)reply.data())[0]=='Y')){
 				int ii;
 				for(ii=0;chids[ii]!=arg1;ii++);
 				for(ii;ii<chids.size()-1;ii++){
@@ -320,10 +319,10 @@ int main(){
 				chids.resize(chids.size()-1);
 				printf("Ok\n");
 			}
-			if((i==4)&&(((char*)reply.data())[0]=='Y')){
+			else if((i==4)&&(((char*)reply.data())[0]=='Y')){
 				heartbit = arg1;
 			}
-			if(((char*)reply.data())[0]=='K'){
+			else if(((char*)reply.data())[0]=='K'){
 //printf("entered cleaning\n");
 				int ii=1,jj=1,ji=1;
 				char tpm;
@@ -338,6 +337,19 @@ int main(){
 						chids[ii]=chids[ii+1];
 					}
 					chids.resize(chids.size()-1);
+				}
+			}
+			else{
+				if(((char*)reply.data())[0]=='Y'){
+					printf("Ok\n");
+				}
+				if(((char*)reply.data())[0]=='V'){
+					int ofs=1+(((char*)reply.data())[1]==' ');
+					int ji=getIntM((char*)reply.data(),ofs);
+					printf("Ok: %d\n",ji);
+				}
+				if(((char*)reply.data())[0]=='N'){
+					printf("Not Ok\n");
 				}
 			}
 //			printf("running processes: ");for(int ii=0;ii<chids.size();ii++){printf("%d ",chids[ii]);}printf("\n");
