@@ -89,11 +89,6 @@ int main( int argc, char *argv[] ){
                         printf("e is %f with %d iterations\n",E(ag1),ag1);
                         continue;
                 }
-
-		/*for(int i=0;i<num;i++){
-			printf("%c",inpt[i]);
-		}
-		printf("\n");*/
 	}
 	return 0;
 }
