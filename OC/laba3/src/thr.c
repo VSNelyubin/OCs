@@ -8,12 +8,9 @@ typedef struct cci{
 	int o;
 }cci;
 
-void* isSubstr(void*vdi){//char*where,char*what,int offset){
+void* isSubstr(void*vdi){
 	cci*inpt=(cci*)vdi;
 	while(inpt->o==-1){}
-//printf("%d\n",vdi);
-//printf("%d\n",((cci*)inpt)->o);
-//	printf("%s\n",inpt->r);for(int i=0;i<inpt->o;i++){printf(" ");}printf("%s\n",inpt->w);
 	for(int i=0;inpt->w[i]!='\0';i++){
 		if(inpt->r[inpt->o+i]!=inpt->w[i]){
 			inpt->o=-1;
@@ -53,14 +50,12 @@ int main(int argc, char *argv[]){
         for(ei=0;ei<=strl-smpl;ei++){
 		ii=ei%limt;
                 if(ei>=limt){
-//			while(argc>4){}
                         if(pthread_join( thrds[ii], NULL)!=0){printf("join error at i=%d\n",ii);}
                 }
                 fori[ii]->r=argv[2];
                 fori[ii]->w=argv[3];
                 fori[ii]->o=ei;
 		if(argc>4){fori[ii]->o=-1;}
-//		printf("\n--\n%s\n",fori->r);for(int i=0;i<fori->o;i++){printf(" ");}printf("%s\n--\n",fori->w);
                 if(pthread_create( &thrds[ii], NULL, isSubstr, (void*)fori[ii])!=0){printf("call error at i=%d\n",ii);}
         }
 	ii++;
