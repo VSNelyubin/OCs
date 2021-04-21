@@ -3,8 +3,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
-
-
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
@@ -28,7 +26,6 @@ int main(){
 	if( access( inpt, F_OK ) ) {
 		printf("Error: file not found\n");
 		return -1;
-    // file doesn't exist
 	}
 
 	pid_t pid;
