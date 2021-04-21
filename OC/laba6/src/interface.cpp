@@ -71,20 +71,11 @@ void updateTimers(std::map<int,double>&timers,zmq::socket_t &socket,bool &runnin
 	int chid,i;
 	int pulse=0;
 	while(running){
-//	printf("qwe %d\n",pulse++);
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		socket.recv(reply,zmq::recv_flags::none);//dontwait);
-//		while( zmq_errno()!=EAGAIN ){
-//		printf("heard %s\n",(char*)(reply.data()));
 		i=4;
 		chid=getIntM(((char*)reply.data()),i);
 		timers[chid]=(double)clock();
-//			socket.recv(reply,zmq::recv_flags::dontwait);
-//		}
-//		printf("%d - %d ; %d\n",pulse,zmq_errno(),EAGAIN);
-//		for (const auto& p : timers ) {
-//			std::cout <<"["<<p.first<<"]"<<(p.second-(double)clock())<<std::endl;
-//		}
 	}
 }
 
@@ -147,9 +138,6 @@ int main(){
 		chidAr[0]='M';
 		chidAr[1]='\0';
 		char*args[]={NodeExec,tmpadresN,chidAr,heartbitListener,NULL};
-//		for(int ii=0;ii<2;ii++){
-//			printf("%s\n",args[ii]);
-//		}
 		execvp(args[0],args);
 		_exit (EXIT_FAILURE);
 	}
@@ -160,7 +148,6 @@ int main(){
 		return false;
 	}
 	else{
-//		printf("forked\n");
 	}
 	zmq::message_t requestN (5);
 	memcpy (requestN.data (), "Ready", 5);
@@ -199,14 +186,10 @@ int main(){
 			}
 			found=false;
 		}
-//	        j++;
 		if(!found){
 			printf("Error: command not found\n");
 			continue;
 		}
-//else{printf("i = %d %s\n",i,cmds[i]);}
-//		printf("%s\n",inpt);
-//for(int ru=0;ru<j;ru++){printf(" ");}printf("^ %c\n",inpt[j]);
 		if(i<5){
 			arg1=getIntM(inpt,j);
 			if(i>2){i++;}
@@ -224,7 +207,6 @@ int main(){
 				else{i++;}
 			}
 		}else{i++;}
-//printf("i = %d %s\n",i,cmds[i-(i>2)]);
 		snd=true;
 		if(i==0){
 			for(tln=0;tln<chids.size();tln++){
@@ -297,8 +279,6 @@ int main(){
 			if( ((char*)reply.data())[0]=='U' ){
 				printf("Error: Node not avaliable\n");
 			}
-//			printf("main answer: %s\n",(char*)reply.data());
-//char tpm;for(int jj=0;true;jj++){tpm=((char*)reply.data())[jj];if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}}printf("\n");
 			if(i==0){
 				if( ((char*)reply.data())[0]=='V' ){
 					chids.push_back(arg1);
@@ -323,15 +303,13 @@ int main(){
 				heartbit = arg1;
 			}
 			else if(((char*)reply.data())[0]=='K'){
-//printf("entered cleaning\n");
 				int ii=1,jj=1,ji=1;
 				char tpm;
 				while(jj<reply.size()){
 					jj++;
-					tpm=((char*)reply.data())[jj];//if(tpm=='\0'){printf("\\0");break;}else if(tpm=='\n'){printf("\\n");}else if(tpm==' '){printf("_");}else{printf("%c",tpm);}
+					tpm=((char*)reply.data())[jj];
 					if((tpm>'9')||(tpm<'0')){break;}
 					ji=getIntM((char*)reply.data(),jj);
-//printf("deleting %d\n",ji);
 					for(ii=0;chids[ii]!=ji;ii++);
 					for(ii;ii<chids.size()-1;ii++){
 						chids[ii]=chids[ii+1];
@@ -352,8 +330,6 @@ int main(){
 					printf("Not Ok\n");
 				}
 			}
-//			printf("running processes: ");for(int ii=0;ii<chids.size();ii++){printf("%d ",chids[ii]);}printf("\n");
-//			printf("main answer: %s\n",(char*)reply.data());
 		}
 		if(i==6){
 			break;
@@ -361,7 +337,6 @@ int main(){
 		if((i==1)&&(arg1==-1)){
 			break;
 		}
-//printf("\n\n");
 		needEnd=true;
 	}
 	running=false;
