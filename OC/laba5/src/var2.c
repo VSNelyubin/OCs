@@ -40,12 +40,8 @@ int primeCount(int A,int B){
 float E(int x){
 	double l=1,rez=1;
 	for(int n=1;n<x;n++){
-//printf("a%d\n",n);
-		l/=n;
-//printf("b%f\n",l);
+		l/=n;);
 		rez+=l;
-//printf("c%f\n",rez);
 	}
-//	printf("rez = %f\n",rez);
 	return (float)rez;
 }
